@@ -45,7 +45,7 @@ class CorrSCII {
                 if (working_image.empty()) { break; };
                 cv::cvtColor(working_image, working_image, cv::COLOR_BGR2GRAY);
 
-                //std::cout << "Frames [" << frame_count << "/" << video_frames << "]\r";
+                std::cout << "Frames [" << frame_count << "/" << video_frames << "]\r";
 
                 std::string corrscii_equivelant;
                 for (int y = 0; y < working_image.rows; y += y_iteration) {
