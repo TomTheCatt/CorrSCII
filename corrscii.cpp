@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include <string_view>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -22,10 +23,14 @@ class CorrSCII {
         };
 
         int toCorrscii (std::string target_path, std::string save_path, int char_width, int char_height) {
-            if (save_path == "") { save_path = working_directory; };
+            std::cout << "Setting up variables. . ." << std::endl;
 
             working_video.open(target_path);
             if (!working_video.isOpened()) { std::cout << "Error: cannot open targetted video" << std::endl; return -1; };
+
+            if (char_height == 0) {char_height = working_video.get(cv::CAP_PROP_FRAME_HEIGHT)/5; };
+            if (char_width == 0) { char_width = working_video.get(cv::CAP_PROP_FRAME_WIDTH)/5; };
+            if (save_path == "") { save_path = working_directory; };
 
             startup(char_width, char_height);
 
@@ -40,10 +45,9 @@ class CorrSCII {
 
             int frame_count = 0;
 
-            std::cout << "Variables successfully decalred. Starting conversion. . ." << std::endl;
+            std::cout << "Variables successfully decalred." << std::endl;
             while (working_video.read(working_image)) {
                 if (working_image.empty()) { break; };
-                cv::cvtColor(working_image, working_image, cv::COLOR_BGR2GRAY);
 
                 std::cout << "Frames [" << frame_count << "/" << video_frames << "]\r";
 
@@ -118,9 +122,7 @@ class CorrSCII {
                 };
             };
 
-            if (!similar_characters.empty()) {
-                return std::string(1, similar_characters[getRand(0, similar_characters.size()-1)]);
-            } else { return "\u2588"; };
+            return (similar_characters.empty()) ? "\u2588" : std::string(1, similar_characters[getRand(0, similar_characters.size()-1)]);
         }
 
         std::vector<std::string> splitString(std::string input_string, const std::string split_at_seq) {
@@ -187,11 +189,65 @@ class CorrSCII {
         std::string spectrum_chars;
 };
 
-int main() {
-    std::string target_path = std::filesystem::current_path().string()+"/test_target.mp4";
+int main(int argc, char* argv[]) {
+    std::cout << "Pass '--help' to view the help menu" << std::endl;
+    if (argc == 1) { return 0; };
+
+    using namespace std::literals;
+
+    if (argv[1] == "--help"sv) {
+        std::cout
+        << "CorrSCII Help Menu\n" << std::endl
+        << "About: The CorrSCII algorithm takes in a path to a video, a save path for the result, and dimenions. About CorrSCII's use, please see a list of arguements below:\n" << std::endl
+        << "Format: [arguement] [parameters]\n" << std::endl
+        << "Arguements:" << std::endl
+        << "\t[-targ] : Path to the target video" << std::endl
+        << "\t[-save] : Path to save the resulting video. Defaults to the executable's path" << std::endl
+        << "\t[-resx] : Sets how many characters the resulting video's width should be--defaults to [video width]/5" << std::endl
+        << "\t[-resy] : Sets how many characters the resulting video's height should be--defaults to [video height]/5" << std::endl
+        << "\t[--res] : Returns resolution of target video. Does not initiate conversion" << std::endl
+        << "\t[--help]: Displays help menu\n" << std::endl;
+        return 0;
+    };
+
+    std::string target_path = "";
     std::string save_path = "";
-    int char_width = 128;
-    int char_height = 72;
+    int char_width = 0;
+    int char_height = 0;
+
+    bool return_resolution = false;
+    bool skip = false;
+
+    for (int i = 1; i < argc-1; i++) {
+        if (skip) { skip = !skip; continue; };
+
+        std::string arg = argv[i];
+        std::string param = (i+1 <= argc-1) ? argv[i+1] : "";
+
+        if (arg == "-targ"sv) {
+            target_path = param; skip = !skip;
+        } else if (arg == "-save"sv) {
+            save_path = param; skip = !skip;
+        } else if (arg == "-resx"sv) {
+            char_width = std::stoi(param); skip = !skip;
+        } else if (arg == "-resy"sv) {
+            char_height = std::stoi(param); skip = !skip;
+        } else if (arg == "--res"sv) {
+            return_resolution = !return_resolution;
+        } else {
+            std::cout << "Error: command '" << arg << "' not recognized" << std::endl; return -1;
+        };
+    };
+
+    if (return_resolution) {
+        if (target_path == "") { std::cout << "Error: cannot get resolution of undefined target path" << std::endl; return -1; };
+
+        cv::VideoCapture vid(target_path);
+        std::cout << vid.get(cv::CAP_PROP_FRAME_WIDTH) << "x" << vid.get(cv::CAP_PROP_FRAME_HEIGHT) << std::endl;
+        return 0;
+    };
+
+    if (target_path == "") { std::cout << "Error: cannot preform conversion with empty target path" << std::endl; return -1; };
     
     CorrSCII corr;
     return corr.toCorrscii(target_path, save_path, char_width, char_height);
